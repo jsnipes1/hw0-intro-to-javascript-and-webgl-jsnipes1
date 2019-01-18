@@ -3,6 +3,7 @@ import * as Stats from 'stats-js';
 import * as DAT from 'dat-gui';
 import Icosphere from './geometry/Icosphere';
 import Square from './geometry/Square';
+import Cube from './geometry/Cube';
 import OpenGLRenderer from './rendering/gl/OpenGLRenderer';
 import Camera from './Camera';
 import {setGL} from './globals';
@@ -13,10 +14,13 @@ import ShaderProgram, {Shader} from './rendering/gl/ShaderProgram';
 const controls = {
   tesselations: 5,
   'Load Scene': loadScene, // A function pointer, essentially
+  color: [255, 0, 0],
+  shader: 0,
 };
 
 let icosphere: Icosphere;
 let square: Square;
+let cube: Cube;
 let prevTesselations: number = 5;
 
 function loadScene() {
@@ -24,6 +28,8 @@ function loadScene() {
   icosphere.create();
   square = new Square(vec3.fromValues(0, 0, 0));
   square.create();
+  cube = new Cube();
+  cube.create();
 }
 
 function main() {
@@ -39,6 +45,8 @@ function main() {
   const gui = new DAT.GUI();
   gui.add(controls, 'tesselations', 0, 8).step(1);
   gui.add(controls, 'Load Scene');
+  gui.addColor(controls, 'color');
+  gui.add(controls, 'shader', {Lambert: 0, Trig: 1});
 
   // get canvas and webgl context
   const canvas = <HTMLCanvasElement> document.getElementById('canvas');
@@ -49,6 +57,12 @@ function main() {
   // `setGL` is a function imported above which sets the value of `gl` in the `globals.ts` module.
   // Later, we can import `gl` from `globals.ts` to access it
   setGL(gl);
+
+      // Trig function shader
+      const trig = new ShaderProgram([
+        new Shader(gl.VERTEX_SHADER, require('./shaders/trig-vert.glsl')),
+        new Shader(gl.FRAGMENT_SHADER, require('./shaders/trig-frag.glsl')),
+      ]);
 
   // Initial call to load scene
   loadScene();
@@ -76,10 +90,22 @@ function main() {
       icosphere = new Icosphere(vec3.fromValues(0, 0, 0), 1, prevTesselations);
       icosphere.create();
     }
-    renderer.render(camera, lambert, [
-      icosphere,
-      // square,
-    ]);
+
+    if (controls.shader == 0) {
+      renderer.render(camera, lambert, [
+        // icosphere,
+        // square,
+        cube
+      ], controls.color);
+    }
+    else {
+      renderer.render(camera, trig, [
+        // icosphere,
+        // square,
+        cube
+      ], controls.color);
+    }
+
     stats.end();
 
     // Tell the browser to call `tick` again whenever it renders a new frame
